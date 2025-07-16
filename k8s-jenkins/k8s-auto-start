@@ -1,0 +1,55 @@
+@Library('ATCLibraries') _
+import com.atc.jenkins.pipeline.Pipeline
+import com.atc.jenkins.pipeline.PipelineImpl
+ 
+Pipeline jenkinsPipeline = new PipelineImpl(this)
+pipeline {
+//*************************************************//
+//Please set the parameters following environment section according to your actual situation of project.
+    environment {
+        k8s_namespace = 'tst-aks-cnn3'
+        //ACA
+        AZURE_TENANT_ID = '' //cloud ad auth group id 
+        AZURE_SUBSCRIPTION_ID = ''
+        RESOURCE_GROUP = 'tst-core-rg-cnn3'
+        // APP_NAME = 'app
+    }
+//*************************************************//
+//Please do not modify the following section.
+    agent {
+        kubernetes {
+            cloud 'kubernetes'
+            label 'nodejs12.4'
+            defaultContainer 'jenkins-agent'
+        }
+    }
+    options {
+        timeout(time: 1, unit: 'HOURS')
+        skipStagesAfterUnstable()
+        buildDiscarder(logRotator(numToKeepStr: '7'))
+        timestamps()
+    }
+    tools {
+        maven 'Maven3.5.3'
+        jdk 'JDK1.8.0_151'
+    }
+    stages {
+        //ACA
+        stage('Deployment') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'Otd_app_test_username_password', passwordVariable: 'AZURE_CLIENT_SECRET', usernameVariable: 'AZURE_CLIENT_ID')]) {
+                    sh '''
+                         az cloud set --name AzureChinaCloud 
+                         az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET -t $AZURE_TENANT_ID
+                         az account set -s $AZURE_SUBSCRIPTION_ID
+                     '''
+                    // Shutdown directly
+                    sh "az aks start --name $k8s_namespace --resource-group $RESOURCE_GROUP"
+                    // Shutdown by downscale all resources of container app, exmaple: (there is no caontainer app in app service)
+                    // sh 'az containerapp update --name dmr-backend-dmr-dev --resource-group $RESOURCE_GROUP --min-replicas 0 --max-replicas 1'
+                    sh 'az logout'
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,31 @@
+version: '3.7'
+
+services:
+  mes-platform-ui-union:
+    build:
+      context: ./mes-platform-ui
+      dockerfile: Dockerfile
+    ports:
+      - "10086:80"
+    networks:
+      - mes-platform-network
+
+  mes-platform-be-union:
+    build:
+      context: ./mes-platform-be
+      dockerfile: Dockerfile
+    environment:
+      # - PYTHONPATH=/app #用于定义额外的目录，以允许项目使用此目录下的模块
+      # - DB_PATH=./mesplatform.db
+      - LOG_LEVEL=INFO
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./mes-platform-be/app:/app
+      - ./mes-platform-be/db.sqlite3:/app/db.sqlite3
+    networks:
+      - mes-platform-network
+
+networks:
+  mes-platform-network:
+    driver: bridge
